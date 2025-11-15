@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Carteira Chatbot</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f5f6fa; margin:0; padding:20px; }
+    .container { max-width:720px; margin:0 auto; background:white; padding:16px; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+    h1 { margin:0 0 12px 0; }
+    #chat { height: 400px; overflow:auto; border:1px solid #eee; padding:10px; border-radius:6px; background:#fff; }
+    .msg { margin:8px 0; }
+    .user { text-align:right; }
+    .bot { text-align:left; }
+    .bubble { display:inline-block; padding:8px 12px; border-radius:16px; max-width:80%; }
+    .bubble.user { background:#2196F3; color:#fff; }
+    .bubble.bot { background:#eee; color:#111; }
+    form { display:flex; gap:8px; margin-top:12px; }
+    input[type="text"]{ flex:1; padding:10px; border-radius:6px; border:1px solid #ddd; }
+    button { padding:10px 12px; border-radius:6px; border:none; background:#4caf50; color:white; cursor:pointer; }
+    button.secondary { background:#2196F3; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>💬 Carteira Chatbot</h1>
+    <div id="chat"></div>
+    <form id="form">
+      <input id="input" type="text" placeholder="Escreva algo: ex: 'adicionar gasto 20 alimentação'" autocomplete="off" />
+      <button type="submit">Enviar</button>
+      <button id="limpar" type="button" class="secondary">Limpar dados</button>
+    </form>
+  </div>
+
+<script>
+  const chat = document.getElementById('chat');
+  const form = document.getElementById('form');
+  const input = document.getElementById('input');
+  const limparBtn = document.getElementById('limpar');
+
+  function addMessage(text, sender='bot'){
+    const div = document.createElement('div');
+    div.className = 'msg ' + (sender==='user' ? 'user' : 'bot');
+    const span = document.createElement('div');
+    span.className = 'bubble ' + (sender==='user' ? 'user' : 'bot');
+    span.textContent = text;
+    div.appendChild(span);
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  async function sendMessage(message){
+    addMessage(message, 'user');
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message })
+      });
+      const j = await res.json();
+      addMessage(j.reply || 'Erro: resposta vazia', 'bot');
+    } catch (err) {
+      addMessage('Erro ao conectar ao servidor: ' + err.message, 'bot');
+    }
+  }
+
+  form.addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const text = input.value.trim();
+    if(!text) return;
+    sendMessage(text);
+    input.value = '';
+  });
+
+  limparBtn.addEventListener('click', async ()=>{
+    if(!confirm('Deseja apagar todos os dados (gastos e saldo)?')) return;
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'limpar dados' })
+    });
+    const j = await res.json();
+    addMessage('limpeza: ' + (j.reply || 'ok'), 'bot');
+  });
+
+  // welcome
+  addMessage('Olá! Eu sou seu assistente de carteira. Tente comandos como: "adicionar gasto 20 alimentação", "saldo", "listar gastos".', 'bot');
+</script>
+</body>
+</html>
